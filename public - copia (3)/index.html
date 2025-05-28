@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Análisis de Solicitudes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link href="css/style.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-chart-bar me-2"></i>Análisis de Solicitudes
+                </a>
+                <div class="d-flex ms-3">
+                    <div class="input-group me-2" style="width: 180px;">
+                        <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                        <input type="text" class="form-control date-from" id="dateFromFilter" placeholder="Desde...">
+                    </div>
+                    <div class="input-group" style="width: 180px;">
+                        <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                        <input type="text" class="form-control date-to" id="dateToFilter" placeholder="Hasta...">
+                        <button class="btn btn-light" id="clearDateFilter">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <button class="btn btn-light ms-auto" id="loadNewData">
+                    <i class="fas fa-file-excel me-2"></i>Cargar Excel
+                </button>
+            </div>
+        </nav>
+
+        <!-- Modal para carga de archivo -->
+        <div class="modal fade" id="fileModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Cargar Archivo Excel</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="excelFile" class="form-label">Seleccione el archivo Excel:</label>
+                            <input class="form-control" type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+                        </div>
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Estructura esperada:</h6>
+                            <ul class="mb-0">
+                                <li>Columna <strong>Analista</strong>: Nombre del analista</li>
+                                <li>Columna <strong>Fecha Creacion</strong>: Fecha/hora de creación</li>
+                                <li>Columna <strong>Fecha_Primer_Analisis</strong>: Fecha/hora del primer análisis</li>
+                                <li>Columna <strong>Fecha_Aprobado</strong>: Fecha/hora de aprobación</li>
+                                <li>Columna <strong>Fecha_Desistido</strong>: Fecha/hora de desistimiento</li>
+                                <li>Columna <strong>Fecha_Rechazado</strong>: Fecha/hora de rechazo</li>
+                                <li>Columna <strong>Fecha_Primera_Reproceso</strong>: Fecha/hora del primer reproceso</li>
+                                <li>Columna <strong>Fecha_Primera_Devolucion</strong>: Fecha/hora de la primera devolución</li>
+                                <li>Columna <strong>Fecha_Primera_Aprobacion</strong>: Fecha/hora de la primera aprobación</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="processFile">Procesar Archivo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- Columna izquierda - Filtros -->
+            <div class="col-md-3">
+                <!-- Card de Analistas -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-users me-2"></i>Analistas</h5>
+                        <div>
+                            <span class="badge bg-light text-primary me-2" id="analystCount">0</span>
+                            <button class="btn btn-sm btn-outline-light" id="clearAnalystFilters">
+                                <i class="fas fa-times me-1"></i>Borrar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="analystsList">
+                            <div class="list-group-item text-center py-5">
+                                <i class="fas fa-file-excel text-muted fa-3x mb-3"></i>
+                                <p class="mb-0">Cargue un archivo Excel para comenzar</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro por día de la semana -->
+                <div class="card mt-3">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-calendar-day me-2"></i>Día de la Semana</h5>
+                        <button class="btn btn-sm btn-outline-light" id="clearDayFilters">
+                            <i class="fas fa-times me-1"></i>Borrar
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="daysList">
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-0" value="0" onchange="toggleDaySelection(0)">
+                                    <label class="form-check-label" for="day-0">Domingo</label>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-1" value="1" onchange="toggleDaySelection(1)">
+                                    <label class="form-check-label" for="day-1">Lunes</label>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-2" value="2" onchange="toggleDaySelection(2)">
+                                    <label class="form-check-label" for="day-2">Martes</label>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-3" value="3" onchange="toggleDaySelection(3)">
+                                    <label class="form-check-label" for="day-3">Miércoles</label>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-4" value="4" onchange="toggleDaySelection(4)">
+                                    <label class="form-check-label" for="day-4">Jueves</label>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-5" value="5" onchange="toggleDaySelection(5)">
+                                    <label class="form-check-label" for="day-5">Viernes</label>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input day-checkbox" type="checkbox" id="day-6" value="6" onchange="toggleDaySelection(6)">
+                                    <label class="form-check-label" for="day-6">Sábado</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtro por Punto de Venta (NUEVA VERSIÓN) -->
+                <div class="card mt-3">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-store me-2"></i>Puntos de Venta</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-light" id="clearPointOfSaleFilters">
+                                <i class="fas fa-times me-1"></i>Borrar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <select class="form-select" id="pointOfSaleSelect" multiple size="5" aria-label="Seleccionar puntos de venta">
+                            <option disabled>Cargue un archivo Excel para comenzar</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna derecha - Contenido principal -->
+            <div class="col-md-9">
+                <!-- Resumen General -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5><i class="fas fa-chart-pie me-2"></i>Resumen General</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Total Gestiones</h6>
+                                        <h3 id="totalGestiones">0</h3>
+                                        <small class="text-muted"><span id="countTotalGestiones">0</span> reg.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Solicitudes Nuevas</h6>
+                                        <h3 id="solicitudesNuevas">0</h3>
+                                        <small class="text-muted"><span id="porcentajeNuevas">0%</span> del total</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Reprocesos</h6>
+                                        <h3 id="reprocesos">0</h3>
+                                        <small class="text-muted"><span id="porcentajeReprocesos">0%</span> del total</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Cola de Espera</h6>
+                                        <h3 id="colaEspera">N/A</h3>
+                                        <small class="text-muted"><span id="countColaEspera">0</span> reg.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Fecha Primera Devolución</h6>
+                                        <h3 id="primeraDevolucion">N/A</h3>
+                                        <small class="text-muted"><span id="countPrimeraDevolucion">0</span> reg.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Aprobación Sin Devolución</h6>
+                                        <h3 id="primeraAprobacion">N/A</h3>
+                                        <small class="text-muted"><span id="countPrimeraAprobacion">0</span> reg.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card card-bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Rechazo Sin Devolución</h6>
+                                        <h3 id="primerRechazo">N/A</h3>
+                                        <small class="text-muted"><span id="countPrimerRechazo">0</span> reg.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficas principales -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Tiempo de Procesamiento</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="timeChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por Estado</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="statusChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficas secundarias -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por País</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="countryChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por Segmento</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="segmentChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Más gráficas -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Top 10 Puntos de Venta</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="pointOfSaleChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por Comercio Afiliado</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="commerceChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Últimas gráficas -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por Marca</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="brandChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por Subcategoría</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="subcategoryChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfica por día de la semana -->
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5>Solicitudes por Día de la Semana</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="dayOfWeekChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de detalles -->
+                <div class="card mt-3">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5>Detalle de Solicitudes</h5>
+                        <div class="d-flex">
+                            <div class="input-group me-2" style="width: 250px;">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Buscar...">
+                                <button class="btn btn-light" type="button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Solicitud</th>
+                                        <th>Analista</th>
+                                        <th>Estado</th>
+                                        <th>Creación</th>
+                                        <th>1er Análisis</th>
+                                        <th>Aprobación</th>
+                                        <th>Tiempo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="requestsTable">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted">
+                                            <i class="fas fa-file-excel fa-3x mb-3"></i>
+                                            <p>Cargue un archivo Excel para ver los datos</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center" id="pagination">
+                                <!-- Paginación se generará dinámicamente -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librerías JS -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.9/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.9/dist/l10n/es.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
